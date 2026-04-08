@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import ExtensionErrorFilter from "@/components/ExtensionErrorFilter";
 
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body className="antialiased" style={{ margin: 0, padding: 0, overflow: "hidden", background: "#000", minHeight: "100vh" }}>
         <ExtensionErrorFilter />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
