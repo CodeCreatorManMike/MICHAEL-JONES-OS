@@ -563,9 +563,8 @@ export default function MacDesktop() {
               {/* Title bar: must stack above resize layer (z-30) so the close control receives taps on mobile */}
               <div
                 onPointerDown={(e) => handleTitleBarPointerDown(e, w.id)}
-                className="isolate flex items-center justify-center flex-shrink-0 cursor-move touch-none pl-[3rem] sm:pl-10 pr-2 relative z-[60] select-none"
+                className="isolate relative z-[60] flex h-[22px] min-h-[44px] flex-shrink-0 cursor-move touch-none select-none sm:min-h-0 sm:h-[22px] items-center justify-center pl-[3rem] pr-2"
                 style={{
-                  height: 22,
                   backgroundColor: TITLEBAR,
                   borderBottom: "1px solid #000",
                   touchAction: "none",
@@ -578,8 +577,8 @@ export default function MacDesktop() {
                     e.stopPropagation();
                     closeWindow(w.id);
                   }}
-                  className="absolute left-0 top-0 z-[70] flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center border-0 bg-transparent p-0 sm:left-0.5 sm:top-0.5 sm:min-h-[22px] sm:min-w-[22px]"
-                  style={{ left: 0, top: 0, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                  className="absolute left-0 top-0 bottom-0 z-[70] flex w-11 cursor-pointer items-center justify-center border-0 bg-transparent p-0 sm:left-0.5 sm:w-auto sm:min-w-[22px] sm:px-0.5"
+                  style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                   aria-label="Close"
                 >
                   <svg
