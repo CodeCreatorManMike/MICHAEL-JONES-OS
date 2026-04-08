@@ -12,36 +12,23 @@ const ICONS_BASE = "/icons";
 function DesktopIcon({
   label,
   iconFile,
-  onDoubleClick,
+  onOpen,
   style,
 }: {
   label: string;
   iconFile: string;
-  onDoubleClick: () => void;
+  onOpen: () => void;
   style?: React.CSSProperties;
 }) {
   const [imgError, setImgError] = useState(true);
-  const lastTapRef = useRef(0);
-
-  const onPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      if (e.pointerType === "mouse") return;
-      const now = Date.now();
-      if (now - lastTapRef.current < 420) {
-        lastTapRef.current = 0;
-        onDoubleClick();
-      } else {
-        lastTapRef.current = now;
-      }
-    },
-    [onDoubleClick]
-  );
 
   return (
     <button
       type="button"
-      onDoubleClick={onDoubleClick}
-      onPointerUp={onPointerUp}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
       className="flex flex-col items-center w-16 max-w-[20vw] cursor-pointer bg-transparent border-0 p-1 hover:opacity-80 active:opacity-80"
       style={{ color: "#000", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", ...style }}
     >
@@ -77,6 +64,9 @@ type WindowId =
   | "socialMedia";
 
 const LISTEN_NOW_BASE = "/listen_now";
+
+const EPK_DRIVE_URL =
+  "https://drive.google.com/drive/folders/1_-FggCjDR4R0nC3MIeFtH1IT0beVbQvb";
 
 type ResizeEdge = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -287,7 +277,6 @@ export default function MacDesktop() {
     startTop: number;
   } | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const folderTapTimesRef = useRef<Record<string, number>>({});
   const [playingTrack, setPlayingTrack] = useState<string | null>(null);
   const narrow = useIsNarrowScreen(640);
   const edgeHandle = narrow ? 14 : HANDLE;
@@ -475,6 +464,10 @@ export default function MacDesktop() {
     window.open(PRESAVES_URL, "_blank", "noopener,noreferrer");
   }, []);
 
+  const openEpkDrive = useCallback(() => {
+    window.open(EPK_DRIVE_URL, "_blank", "noopener,noreferrer");
+  }, []);
+
   const playTrack = useCallback(
     (audioFile: string, label: string) => {
       const audio = audioRef.current;
@@ -502,17 +495,18 @@ export default function MacDesktop() {
 
   const desktopIcons: Array<
     | { id: string; label: string; iconFile: string; windowId: WindowId }
-    | { id: string; label: string; iconFile: string; onDoubleClick: () => void }
+    | { id: string; label: string; iconFile: string; onOpen: () => void }
   > = [
     { id: "readme", label: "README", iconFile: "README_icon", windowId: "readme" },
     { id: "listen_now", label: "Listen Now", iconFile: "listen_now_icon", windowId: "listenNow" },
     { id: "songs", label: "Songs", iconFile: "song_icon", windowId: "songs" },
-    { id: "presaves", label: "Presaves", iconFile: "presave_icon", onDoubleClick: openPresaves },
-    { id: "music_videos", label: "Music Videos", iconFile: "music_videos_icon", onDoubleClick: openMusicVideos },
+    { id: "presaves", label: "Presaves", iconFile: "presave_icon", onOpen: openPresaves },
+    { id: "music_videos", label: "Music Videos", iconFile: "music_videos_icon", onOpen: openMusicVideos },
     { id: "folder", label: "Folder", iconFile: "folder_icon", windowId: "folder" },
     { id: "social_media", label: "Social Media", iconFile: "social_media_icon", windowId: "socialMedia" },
     { id: "contact", label: "Contact", iconFile: "contact_icon", windowId: "contact" },
     { id: "blog", label: "Blog", iconFile: "blog_icon", windowId: "blog" },
+    { id: "epk", label: "EPK", iconFile: "epk_icon", onOpen: openEpkDrive },
   ];
 
   return (
@@ -541,10 +535,10 @@ export default function MacDesktop() {
               key={icon.id}
               label={icon.label}
               iconFile={icon.iconFile}
-              onDoubleClick={() => ("windowId" in icon ? openWindow(icon.windowId) : icon.onDoubleClick())}
+              onOpen={() => ("windowId" in icon ? openWindow(icon.windowId) : icon.onOpen())}
             />
           ))}
-          <DesktopIcon label="Trash" iconFile="trash_icon_demos" onDoubleClick={() => {}} />
+          <DesktopIcon label="Trash" iconFile="trash_icon_demos" onOpen={() => {}} />
         </div>
 
         {/* Windows */}
@@ -566,10 +560,10 @@ export default function MacDesktop() {
                 backgroundColor: WINDOW_BG,
               }}
             >
-              {/* Title bar */}
+              {/* Title bar: must stack above resize layer (z-30) so the close control receives taps on mobile */}
               <div
                 onPointerDown={(e) => handleTitleBarPointerDown(e, w.id)}
-                className="flex items-center justify-center flex-shrink-0 cursor-move touch-none pl-6 pr-2 relative z-20 select-none"
+                className="isolate flex items-center justify-center flex-shrink-0 cursor-move touch-none pl-[3rem] sm:pl-10 pr-2 relative z-[60] select-none"
                 style={{
                   height: 22,
                   backgroundColor: TITLEBAR,
@@ -579,20 +573,27 @@ export default function MacDesktop() {
               >
                 <button
                   type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     closeWindow(w.id);
                   }}
-                  className="absolute left-0.5 top-0.5 w-4 h-4 flex items-center justify-center bg-transparent border-0 cursor-pointer p-0 z-40"
-                  style={{ left: 2, top: 2 }}
+                  className="absolute left-0 top-0 z-[70] flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center border-0 bg-transparent p-0 sm:left-0.5 sm:top-0.5 sm:min-h-[22px] sm:min-w-[22px]"
+                  style={{ left: 0, top: 0, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                   aria-label="Close"
                 >
-                  <svg width={14} height={14} viewBox="0 0 14 14" className="overflow-visible" style={{ imageRendering: "pixelated" }}>
+                  <svg
+                    width={14}
+                    height={14}
+                    viewBox="0 0 14 14"
+                    className="pointer-events-none overflow-visible"
+                    style={{ imageRendering: "pixelated" }}
+                  >
                     <line x1={1} y1={1} x2={13} y2={13} stroke="#000" strokeWidth={2} />
                     <line x1={13} y1={1} x2={1} y2={13} stroke="#000" strokeWidth={2} />
                   </svg>
                 </button>
-                <span className="text-sm font-bold">{w.title}</span>
+                <span className="pointer-events-none text-sm font-bold">{w.title}</span>
               </div>
 
               {/* Content */}
@@ -849,7 +850,7 @@ export default function MacDesktop() {
                       className="flex-1 p-2 overflow-auto"
                       style={{ borderRight: "1px solid #000" }}
                     >
-                      <p className="text-xs mb-2">9 items</p>
+                      <p className="text-xs mb-2">10 items</p>
                       <div className="grid grid-cols-3 gap-4">
                         {[
                           { label: "README", icon: "README_icon", windowId: "readme" as WindowId },
@@ -857,6 +858,7 @@ export default function MacDesktop() {
                           { label: "Songs", icon: "song_icon", windowId: "songs" as WindowId },
                           { label: "Presaves", icon: "presave_icon", isLink: true, url: PRESAVES_URL },
                           { label: "Music Videos", icon: "music_videos_icon", isLink: true, url: MUSIC_VIDEOS_URL },
+                          { label: "EPK", icon: "epk_icon", isLink: true, url: EPK_DRIVE_URL },
                           { label: "Folder", icon: "folder_icon", windowId: "folder" as WindowId },
                           { label: "Social Media", icon: "social_media_icon", windowId: "socialMedia" as WindowId },
                           { label: "Contact", icon: "contact_icon", windowId: "contact" as WindowId },
@@ -867,22 +869,9 @@ export default function MacDesktop() {
                             type="button"
                             className="flex flex-col items-center cursor-pointer bg-transparent border-0 p-1 hover:opacity-80"
                             style={{ touchAction: "manipulation" }}
-                            onDoubleClick={(e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               runFolderItemAction(item);
-                            }}
-                            onPointerUp={(e) => {
-                              if (e.pointerType === "mouse") return;
-                              e.stopPropagation();
-                              const key = item.label;
-                              const now = Date.now();
-                              const prev = folderTapTimesRef.current[key] ?? 0;
-                              if (now - prev < 420) {
-                                delete folderTapTimesRef.current[key];
-                                runFolderItemAction(item);
-                              } else {
-                                folderTapTimesRef.current[key] = now;
-                              }
                             }}
                           >
                             <img
