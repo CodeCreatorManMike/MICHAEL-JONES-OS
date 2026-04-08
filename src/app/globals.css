@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --mac-teal: #2e8b8b;
+  --mac-window-bg: #c0c0c0;
+  --mac-titlebar: #dddddd;
+  --matrix-green: #00ff41;
+  --matrix-green-dim: #00cc33;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #000;
+  min-height: 100vh;
+}
+
+/* Pixel / Chicago-style font fallback */
+.font-pixel {
+  font-family: "Chicago", "Monaco", "Courier New", monospace;
+}
