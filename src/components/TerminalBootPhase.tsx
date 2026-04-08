@@ -48,7 +48,7 @@ export default function TerminalBootPhase({ onComplete }: { onComplete: () => vo
 
   return (
     <div
-      className="fixed inset-0 bg-black p-6 md:p-10 overflow-hidden text-sm md:text-base"
+      className="fixed inset-0 min-h-[100dvh] bg-black p-4 sm:p-6 md:p-10 overflow-y-auto overflow-x-hidden text-xs sm:text-sm md:text-base"
       style={{
         color: MATRIX_GREEN,
         textShadow: `0 0 4px ${MATRIX_GREEN}`,

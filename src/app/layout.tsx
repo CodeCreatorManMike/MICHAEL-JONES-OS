@@ -1,10 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ExtensionErrorFilter from "@/components/ExtensionErrorFilter";
 
 export const metadata: Metadata = {
   title: "Michael Jones",
   description: "Personal brand / content / music",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

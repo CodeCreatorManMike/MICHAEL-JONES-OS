@@ -36,11 +36,11 @@ export default function CountdownPhase({ onComplete }: { onComplete: () => void 
 
   return (
     <div
-      className="fixed inset-0 bg-black flex items-center justify-end pr-[15%]"
+      className="fixed inset-0 bg-black flex items-center justify-center sm:justify-end px-4 sm:px-8 sm:pr-[15%] min-h-[100dvh]"
       style={{ fontFamily: '"VCR OSD Mono", monospace' }}
     >
       <div
-        className="text-6xl md:text-8xl tabular-nums tracking-widest"
+        className="text-4xl sm:text-6xl md:text-8xl tabular-nums tracking-widest max-w-[100%] text-center sm:text-right"
         style={{
           color: MATRIX_GREEN,
           textShadow: `0 0 10px ${MATRIX_GREEN}, 0 0 20px ${MATRIX_GREEN}`,

@@ -17,6 +17,12 @@ body {
   overflow: hidden;
   background-color: #000;
   min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Safe area for notched phones (desktop unaffected when insets are 0) */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Pixel / Chicago-style font fallback */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useIsNarrowScreen } from "@/hooks/useIsNarrowScreen";
 
 const TEAL = "#2E8B8B";
 const WINDOW_BG = "#C0C0C0";
@@ -20,12 +21,29 @@ function DesktopIcon({
   style?: React.CSSProperties;
 }) {
   const [imgError, setImgError] = useState(true);
+  const lastTapRef = useRef(0);
+
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.pointerType === "mouse") return;
+      const now = Date.now();
+      if (now - lastTapRef.current < 420) {
+        lastTapRef.current = 0;
+        onDoubleClick();
+      } else {
+        lastTapRef.current = now;
+      }
+    },
+    [onDoubleClick]
+  );
+
   return (
     <button
       type="button"
       onDoubleClick={onDoubleClick}
-      className="flex flex-col items-center w-16 cursor-pointer bg-transparent border-0 p-1 hover:opacity-80"
-      style={{ color: "#000", ...style }}
+      onPointerUp={onPointerUp}
+      className="flex flex-col items-center w-16 max-w-[20vw] cursor-pointer bg-transparent border-0 p-1 hover:opacity-80 active:opacity-80"
+      style={{ color: "#000", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", ...style }}
     >
       <span className="block w-8 h-8">
         <img
@@ -269,7 +287,11 @@ export default function MacDesktop() {
     startTop: number;
   } | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const folderTapTimesRef = useRef<Record<string, number>>({});
   const [playingTrack, setPlayingTrack] = useState<string | null>(null);
+  const narrow = useIsNarrowScreen(640);
+  const edgeHandle = narrow ? 14 : HANDLE;
+  const cornerHandle = narrow ? 18 : HANDLE + 6;
 
   const focusWindow = useCallback((id: WindowId) => {
     setWindows((prev) => {
@@ -295,12 +317,35 @@ export default function MacDesktop() {
     });
   }, []);
 
-  const handleTitleBarMouseDown = useCallback(
-    (e: React.MouseEvent, id: WindowId) => {
+  const runFolderItemAction = useCallback(
+    (item: {
+      label: string;
+      icon: string;
+      windowId?: WindowId;
+      isLink?: boolean;
+      url?: string;
+    }) => {
+      if ("isLink" in item && item.isLink && item.url) {
+        window.open(item.url, "_blank", "noopener,noreferrer");
+      } else if (item.windowId) {
+        openWindow(item.windowId);
+      }
+    },
+    [openWindow]
+  );
+
+  const handleTitleBarPointerDown = useCallback(
+    (e: React.PointerEvent, id: WindowId) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
       e.preventDefault();
       const w = windows.find((x) => x.id === id);
       if (!w) return;
       focusWindow(id);
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
       dragRef.current = {
         windowId: id,
         startX: e.clientX,
@@ -312,13 +357,19 @@ export default function MacDesktop() {
     [windows, focusWindow]
   );
 
-  const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent, id: WindowId, edge: ResizeEdge) => {
+  const handleResizePointerDown = useCallback(
+    (e: React.PointerEvent, id: WindowId, edge: ResizeEdge) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
       const w = windows.find((x) => x.id === id);
       if (!w) return;
       focusWindow(id);
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
       resizeRef.current = {
         windowId: id,
         edge,
@@ -334,7 +385,7 @@ export default function MacDesktop() {
   );
 
   useEffect(() => {
-    const move = (e: MouseEvent) => {
+    const move = (e: PointerEvent) => {
       if (resizeRef.current) {
         const { windowId, edge, startX, startY, startW, startH, startLeft, startTop } = resizeRef.current;
         const dx = e.clientX - startX;
@@ -382,12 +433,38 @@ export default function MacDesktop() {
       dragRef.current = null;
       resizeRef.current = null;
     };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
     return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
     };
+  }, []);
+
+  const MENU_BAR_H = 22;
+  useEffect(() => {
+    const pad = 4;
+    const clampAll = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      setWindows((prev) =>
+        prev.map((w) => {
+          let { x, y, width, height } = w;
+          const maxW = Math.max(MIN_WIN_W, vw - pad * 2);
+          const maxH = Math.max(MIN_WIN_H, vh - MENU_BAR_H - pad * 2);
+          width = Math.min(Math.max(width, MIN_WIN_W), maxW);
+          height = Math.min(Math.max(height, MIN_WIN_H), maxH);
+          x = Math.min(Math.max(pad, x), vw - width - pad);
+          y = Math.min(Math.max(pad + MENU_BAR_H, y), vh - height - pad);
+          return { ...w, x, y, width, height };
+        })
+      );
+    };
+    clampAll();
+    window.addEventListener("resize", clampAll);
+    return () => window.removeEventListener("resize", clampAll);
   }, []);
 
   const openMusicVideos = useCallback(() => {
@@ -450,11 +527,14 @@ export default function MacDesktop() {
       />
       <MacMenuBar />
 
-      <div className="flex-1 relative overflow-hidden">
-        {/* Desktop icons - right side */}
+      <div className="flex-1 relative overflow-hidden min-h-0">
+        {/* Desktop icons: single column on wide screens; responsive grid on narrow so Trash never overlaps */}
         <div
-          className="absolute flex flex-col items-center gap-2"
-          style={{ right: 24, top: 24 }}
+          className={
+            narrow
+              ? "absolute z-[5] left-2 right-2 top-12 bottom-2 pb-safe grid grid-cols-3 auto-rows-min gap-x-1 gap-y-2 justify-items-center content-start overflow-y-auto overflow-x-hidden pointer-events-none [&>*]:pointer-events-auto"
+              : "absolute z-[5] right-6 top-14 flex w-[5.5rem] flex-col items-end gap-2 max-h-[min(calc(100%-5rem),calc(100dvh-6rem))] overflow-y-auto overflow-x-hidden pointer-events-none [&>*]:pointer-events-auto pb-safe"
+          }
         >
           {desktopIcons.map((icon) => (
             <DesktopIcon
@@ -464,15 +544,8 @@ export default function MacDesktop() {
               onDoubleClick={() => ("windowId" in icon ? openWindow(icon.windowId) : icon.onDoubleClick())}
             />
           ))}
+          <DesktopIcon label="Trash" iconFile="trash_icon_demos" onDoubleClick={() => {}} />
         </div>
-
-        {/* Trash */}
-        <DesktopIcon
-          label="Trash"
-          iconFile="trash_icon_demos"
-          onDoubleClick={() => {}}
-          style={{ position: "absolute", right: 24, bottom: 24 }}
-        />
 
         {/* Windows */}
         {windows
@@ -495,12 +568,13 @@ export default function MacDesktop() {
             >
               {/* Title bar */}
               <div
-                onMouseDown={(e) => handleTitleBarMouseDown(e, w.id)}
-                className="flex items-center justify-center flex-shrink-0 cursor-move pl-6 pr-2 relative z-20"
+                onPointerDown={(e) => handleTitleBarPointerDown(e, w.id)}
+                className="flex items-center justify-center flex-shrink-0 cursor-move touch-none pl-6 pr-2 relative z-20 select-none"
                 style={{
                   height: 22,
                   backgroundColor: TITLEBAR,
                   borderBottom: "1px solid #000",
+                  touchAction: "none",
                 }}
               >
                 <button
@@ -792,12 +866,22 @@ export default function MacDesktop() {
                             key={item.label}
                             type="button"
                             className="flex flex-col items-center cursor-pointer bg-transparent border-0 p-1 hover:opacity-80"
+                            style={{ touchAction: "manipulation" }}
                             onDoubleClick={(e) => {
                               e.stopPropagation();
-                              if ("isLink" in item && item.isLink && "url" in item && item.url) {
-                                window.open(item.url, "_blank", "noopener,noreferrer");
-                              } else if ("windowId" in item && item.windowId) {
-                                openWindow(item.windowId);
+                              runFolderItemAction(item);
+                            }}
+                            onPointerUp={(e) => {
+                              if (e.pointerType === "mouse") return;
+                              e.stopPropagation();
+                              const key = item.label;
+                              const now = Date.now();
+                              const prev = folderTapTimesRef.current[key] ?? 0;
+                              if (now - prev < 420) {
+                                delete folderTapTimesRef.current[key];
+                                runFolderItemAction(item);
+                              } else {
+                                folderTapTimesRef.current[key] = now;
                               }
                             }}
                           >
@@ -826,21 +910,21 @@ export default function MacDesktop() {
               >
                 {(
                   [
-                    ["n", { top: 0, left: HANDLE, right: HANDLE, height: HANDLE, cursor: "ns-resize" }],
-                    ["s", { bottom: 0, left: HANDLE, right: HANDLE, height: HANDLE, cursor: "ns-resize" }],
-                    ["w", { left: 0, top: HANDLE, bottom: HANDLE, width: HANDLE, cursor: "ew-resize" }],
-                    ["e", { right: 0, top: HANDLE, bottom: HANDLE, width: HANDLE, cursor: "ew-resize" }],
-                    ["nw", { top: 0, left: 0, width: HANDLE + 6, height: HANDLE + 6, cursor: "nwse-resize" }],
-                    ["ne", { top: 0, right: 0, width: HANDLE + 6, height: HANDLE + 6, cursor: "nesw-resize" }],
-                    ["sw", { bottom: 0, left: 0, width: HANDLE + 6, height: HANDLE + 6, cursor: "nesw-resize" }],
-                    ["se", { bottom: 0, right: 0, width: HANDLE + 6, height: HANDLE + 6, cursor: "nwse-resize" }],
+                    ["n", { top: 0, left: edgeHandle, right: edgeHandle, height: edgeHandle, cursor: "ns-resize" }],
+                    ["s", { bottom: 0, left: edgeHandle, right: edgeHandle, height: edgeHandle, cursor: "ns-resize" }],
+                    ["w", { left: 0, top: edgeHandle, bottom: edgeHandle, width: edgeHandle, cursor: "ew-resize" }],
+                    ["e", { right: 0, top: edgeHandle, bottom: edgeHandle, width: edgeHandle, cursor: "ew-resize" }],
+                    ["nw", { top: 0, left: 0, width: cornerHandle, height: cornerHandle, cursor: "nwse-resize" }],
+                    ["ne", { top: 0, right: 0, width: cornerHandle, height: cornerHandle, cursor: "nesw-resize" }],
+                    ["sw", { bottom: 0, left: 0, width: cornerHandle, height: cornerHandle, cursor: "nesw-resize" }],
+                    ["se", { bottom: 0, right: 0, width: cornerHandle, height: cornerHandle, cursor: "nwse-resize" }],
                   ] as const
                 ).map(([edge, style]) => (
                   <div
                     key={edge}
-                    className="absolute pointer-events-auto"
-                    style={style as React.CSSProperties}
-                    onMouseDown={(e) => handleResizeMouseDown(e, w.id, edge as ResizeEdge)}
+                    className="absolute pointer-events-auto touch-none"
+                    style={{ ...(style as React.CSSProperties), touchAction: "none" }}
+                    onPointerDown={(e) => handleResizePointerDown(e, w.id, edge as ResizeEdge)}
                   />
                 ))}
               </div>

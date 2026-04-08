@@ -52,7 +52,7 @@ export default function Home() {
   const goDesktop = useCallback(() => setPhase("desktop"), []);
 
   return (
-    <main className="fixed inset-0 w-full h-full">
+    <main className="fixed inset-0 w-full h-full min-h-[100dvh]">
       <audio
         ref={audioRef}
         src="/untitled.mp3"
@@ -63,7 +63,7 @@ export default function Home() {
       {phase === "start" && (
         <button
           type="button"
-          className="fixed inset-0 w-full h-full bg-black cursor-default border-0 outline-none flex items-center justify-center"
+          className="fixed inset-0 w-full h-full min-h-[100dvh] bg-black cursor-default border-0 outline-none flex items-center justify-center px-4 pb-safe"
           onClick={startExperience}
           style={{ fontFamily: '"VCR OSD Mono", monospace', color: "#00ff41", fontSize: "clamp(14px, 3vw, 20px)" }}
           aria-label="Tap to start"
@@ -91,20 +91,46 @@ function AsciiPhase({
   durationMs: number;
   onComplete: () => void;
 }) {
+  const [textFontSize, setTextFontSize] = useState(64);
+  const [asciiFontSize, setAsciiFontSize] = useState(6);
+  const [planeH, setPlaneH] = useState(3.2);
+
   useEffect(() => {
     const id = setTimeout(onComplete, durationMs);
     return () => clearTimeout(id);
   }, [durationMs, onComplete]);
 
+  useEffect(() => {
+    const apply = () => {
+      const w = typeof window !== "undefined" ? window.innerWidth : 1024;
+      if (w < 420) {
+        setTextFontSize(26);
+        setAsciiFontSize(4);
+        setPlaneH(2.4);
+      } else if (w < 640) {
+        setTextFontSize(40);
+        setAsciiFontSize(5);
+        setPlaneH(2.8);
+      } else {
+        setTextFontSize(64);
+        setAsciiFontSize(6);
+        setPlaneH(3.2);
+      }
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
+  }, []);
+
   return (
-    <div className="fixed inset-0 w-full h-full bg-black">
+    <div className="fixed inset-0 w-full h-full min-h-[100dvh] bg-black">
       <ASCIIText
         text="MICHAEL JONES"
         enableWaves
-        asciiFontSize={6}
-        textFontSize={64}
+        asciiFontSize={asciiFontSize}
+        textFontSize={textFontSize}
         textColor="#00ff41"
-        planeBaseHeight={3.2}
+        planeBaseHeight={planeH}
       />
     </div>
   );
